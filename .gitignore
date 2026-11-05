@@ -1,3 +1,14 @@
+# Data files
+PypeIt-development-suite/*
+REDUX_OUT/*
+*_RD/*
+REDUX_OUT/*
+*.png 
+*.fits
+*.fits.gz
+*.html
+*.pdf
+
 # Environment variables
 .env
 .env.*
