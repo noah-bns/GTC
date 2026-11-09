@@ -116,3 +116,67 @@ pypeit_show_1dspec Science/spec1d_DE.20170425.50487-dra11_DEIMOS_20170425T140121
 ### Flexure correction
 The default run performs a flexure correction, slit-by-slit based on analysis of the sky lines to impose a fixed pixel shift for each detector in the spectral dimension. For a more accurate solution, it may be preferred to perform flexure across both detectors.
 
+## GTC Data Test
+
+mkdir GTC_R2500I_RD
+cd GTC_R2500I_RD
+
+export RAW_PATH=/Users/noah/GTC/RAW_GTC/R2500I
+
+pypeit_obslog gtc_osiris_plus -r RAW_PATH -k > obslog_keys.txt #save the key names
+pypeit_obslog gtc_osiris_plus -r RAW_PATH -c all  > obslog_columns.txt #got the error "Unable to find any raw files for gtc_osiris_plus in RAW_PATH!" ????
+pypeit_setup -r $RAW_PATH -s gtc_osiris_plus -c all
+#then edit all standards to science
+
+cd gtc_osiris_plus_A
+run_pypeit gtc_osiris_plus_A.pypeit -o 
+
+### Verify the mis detection
+
+Look for Find Object lack
+
+Look for Extraction issue:
+pypeit_parse_slits Science/spec2d_0005546748-20250814-OSIRIS-OsirisMOS-red_box_OSIRIS_20250815T025930.142.fits
+ 
+# Dissecting Steps
+
+## Show option
+ginga --modules=RC,SlitWavelength & #allow remote ginga control
+
+## Run up to a Calib Step (if files missing)
+
+Provide: 
+(1) the PypeIt file, 
+(2) the calibration step to re-run to, and 
+(3) either the raw science file whose calibration file(s) you wish to re-run or the calib_group ID (and --det optionally)
+
+Valid steps are: align, arc, bias, bpm, dark, flats, scattlight, slits, tiltimg, tilts, wv_calib
+
+pypeit_run_to_calibstep shane_kast_blue_A.pypeit wv_calib --science_frame b28.fits.gz -s #-s shows lots of plots Requires remote control ginga session via "ginga --modules=RC,SlitWavelength &"
+
+## Run each Processing step
+
+### Step 1: Process the raw image
+pypeit_reduce_by_step my_reduction.pypeit science_frame.fits process --det 1 --show
+
+produces:
+- Intermediate/sciImg_<basename>_<det>.fits: Processed science image
+- Intermediate/bkgImg_<basename>_<det>.fits: Background image (if applicable)
+
+### Step 2: Find objects
+pypeit_reduce_by_step my_reduction.pypeit science_frame.fits findobj --det 1 --show
+
+produces:
+- Science/initsky_<basename>_<det>.fits: Initial sky model
+- Science/spec1d_<basename>_<det>.fits: Object catalog with traces (no extractions)
+
+### Step 3: Extract spectra
+pypeit_reduce_by_step my_reduction.pypeit science_frame.fits extract --det 1 --show
+
+Produces final products:
+- Science/spec2d_<basename>.fits: 2D spectrum
+- Science/spec1d_<basename>.fits: Extracted 1D spectra
+
+### Step 4: Full integration
+rm -rf Science/ Calibrations/ # Remove intermediate files to start fresh
+run_pypeit my_reduction.pypeit # Run full reduction with optimized parameters
