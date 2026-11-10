@@ -13,6 +13,7 @@ REDUX_OUT/*
 .env
 .env.*
 
+
 # Dependencies
 node_modules/
 vendor/
