@@ -123,7 +123,7 @@ mkdir GTC_R2500I_RD
 cd GTC_R2500I_RD
 
 export RAW_PATH=/Users/noah/GTC/RAW_GTC/R2500I 
-set "RAW_PATH=C:\Users\noah.bensoussan\Documents\GTC_RAW\GTC41-25A_0007/R2500I" #if local and windows
+$RAW_PATH = "C:\Users\noah.bensoussan\Documents\GTC_RAW\GTC41-25A_0007\R2500I" #if local and windows
 
 pypeit_obslog gtc_osiris_plus -r RAW_PATH -k > obslog_keys.txt #save the key names
 pypeit_obslog gtc_osiris_plus -r RAW_PATH -c all  > obslog_columns.txt #got the error "Unable to find any raw files for gtc_osiris_plus in RAW_PATH!" ????
