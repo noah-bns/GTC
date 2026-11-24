@@ -1,5 +1,11 @@
 # encoding: utf-8
 """
+VERSION HISTORY
+--------------------------------
+
+v3.0 + Noah Bensoussan, 16/11/2026
+- NEW: Added the extract_badskysub parameter to the list of recognized keywords for ExtractionPar
+
 Defines parameter sets used to set the behavior for core pypeit
 functionality.
 
@@ -5054,6 +5060,7 @@ class ExtractionPar(ParSet):
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, min_frac_prof=None, sn_gauss=None,
                  model_full_slit=None, skip_extraction=None, skip_optimal=None,
                  use_2dmodel_mask=None, use_user_fwhm=None, return_negative=None,
+                # CHANGED: Added the extract_badskysub parameter to the list of recognized keywords for ExtractionPar
                  extract_badskysub=None):
 
         # Grab the parameter names and values from the function
@@ -5122,10 +5129,14 @@ class ExtractionPar(ParSet):
         dtypes['return_negative'] = bool
         descr['return_negative'] = 'If ``True`` the negative traces will be extracted and saved to disk'
 
+        # >>> NEW
+        # CHANGED: Added the extract_badskysub parameter to the list of recognized keywords for ExtractionPar
+
         defaults['extract_badskysub'] = False
         dtypes['extract_badskysub'] = bool
         descr['extract_badskysub'] = 'For gtc_osiris_plus only, permit boxcar extraction on slits flagged ' \
                                      'BADSKYSUB without subtracting a sky model'
+        # <<< END NEW
 
         # Instantiate the parameter set
         super(ExtractionPar, self).__init__(list(pars.keys()),
@@ -5142,6 +5153,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'min_frac_prof', 'sn_gauss', 'model_full_slit',
+                   # CHANGED: Added the extract_badskysub parameter to the list of recognized keywords for ExtractionPar
                    'skip_extraction', 'skip_optimal', 'use_2dmodel_mask', 'use_user_fwhm', 'return_negative',
                    'extract_badskysub']
 

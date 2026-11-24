@@ -1,4 +1,15 @@
 """
+VERSION HISTORY
+--------------------------------
+
+v3.0 + Noah Bensoussan, 16/11/2026
+- NEW: Added the extract_badskysub parameter to the list of recognized keywords for ExtractionPar
+- MODIFICATION: Use the flexure_bpm instead of the extract_bpm to determine which slits are good for flexure correction. 
+- NEW: Added method to perform boxcar extraction for slits flagged as BADSKYSUB: _extract_badskysub_boxcar(self, sobj, inmask, zero_sky)   
+(this change is enabled only for the gtc_osiris_plus spectrograph and when the extract_badskysub parameter is set to True:
+see line 194 if self.spectrograph.name == 'gtc_osiris_plus')         
+
+
 Main driver class for skysubtraction and extraction
 
 .. include common links, assuming primary doc root is up one directory
@@ -172,6 +183,11 @@ class Extract:
         self.initialize_slits(slits)
 
         # Internal bpm mask
+        # >>> NEW
+        # CHANGE: Added the use the extract_badskysub parameter to perform extraction. 
+        # This is used to determine which slits are good for extraction. It is initialized to the slits.mask but can be modified to turn off the BADSKYSUB flag if the user has requested to extract those slits.
+
+        #Added:
         self.badskysub_slits = self.slits.bitmask.flagged(
             self.slits.mask, flag='BADSKYSUB')
         self.extract_badskysub = (
@@ -181,12 +197,16 @@ class Extract:
         if self.extract_badskysub:
             extraction_mask = self.slits.bitmask.turn_off(
                 extraction_mask, 'BADSKYSUB')
+        # End of addition
         self.extract_bpm = self.slits.bitmask.flagged(
-                                extraction_mask,
+                                extraction_mask, #modified (used to be self.slits.mask)
                                 and_not=self.slits.bitmask.exclude_for_reducing)
+        # Added:
         self.flexure_bpm = self.extract_bpm.copy()
         if self.extract_badskysub:
             self.flexure_bpm |= self.badskysub_slits
+        # End of addition
+        # <<< END NEW
         self.extract_bpm_init = self.extract_bpm.copy()
 
         # These may be None (i.e. COADD2D)
@@ -376,16 +396,37 @@ class Extract:
 
             # This will hold the extracted objects
             self.sobjs = self.sobjs_obj.copy()
+
+        # >>> NEW
+        # CHANGE: Allow extraction of slits flagged as BADSKYSUB. 
+        # This is done by setting the skymodel to zero for those slits and 
+        # performing a boxcar extraction without sky subtraction.
+
+        # 1. Create the skymodel and bkg_redux_skymodel from global_sky and bkg_redux_global_sky earlier. 
+        # This is done so that the skymodel and bkg_redux_skymodel are available for all slits, 
+        # even those flagged as BADSKYSUB.
+
+        #Moved ealier:
             self.skymodel = global_sky.copy()
             self.bkg_redux_skymodel = bkg_redux_global_sky.copy() \
                 if bkg_redux_global_sky is not None else None
+        #End moved ealier
 
             # Quick loop over the objects
-            zero_sky = None
+
+            # 2. Initialise a zero_sky array to None. 
+            # This will be used to hold a zero array for the skymodel for the BADSKYSUB slits.
+            zero_sky = None # Added
             for sobj in self.sobjs:
                 # True  = Good, False = Bad for inmask
                 thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = self.sciImg.select_flag(invert=True) & thismask
+
+            # 3. Check if the slit is flagged as BADSKYSUB. 
+            # If it is, set the skymodel to zero for that slit and perform a boxcar extraction without sky subtraction. 
+            # If it is not flagged as BADSKYSUB, perform a boxcar extraction with sky subtraction.
+            
+            # Added:
                 slit_idx = np.flatnonzero(self.slits.spat_id == sobj.SLITID)
                 if slit_idx.size != 1:
                     raise PypeItError(
@@ -402,6 +443,8 @@ class Extract:
                         zero_sky = np.zeros_like(self.sciImg.image)
                     self._extract_badskysub_boxcar(sobj, inmask, zero_sky)
                     continue
+            # End of addition
+
                 extract_sky = global_sky if bkg_redux_global_sky is None else bkg_redux_global_sky
                 # Do it
                 sobj.extract_boxcar(
@@ -416,6 +459,15 @@ class Extract:
             # NOTE: fullmask is a bit mask, make sure it's treated as such, not
             # a boolean (e.g., bad pixel) mask.
             self.outmask = self.sciImg.fullmask.copy()
+            # Removed:
+            # Those lines were moved earlier to ensure that the skymodel 
+            # and bkg_redux_skymodel are available for all slits, 
+            # even those flagged as BADSKYSUB.
+            #self.skymodel = global_sky.copy()
+            #self.bkg_redux_skymodel = bkg_redux_global_sky.copy() if bkg_redux_global_sky is not None else None
+
+    # <<< END NEW
+            
 
         else:  # Local sky subtraction and optimal extraction.
             model_noise_1 = not self.bkg_redux if model_noise is None else model_noise
@@ -563,7 +615,11 @@ class Extract:
         # Prepare a list of slit spectra, if required.
         if mode == "global":
             log.info('Performing global spectral flexure correction')
-            gd_slits = np.logical_not(self.flexure_bpm)
+            gd_slits = np.logical_not(self.flexure_bpm) # Change: Use the flexure_bpm instead of the extract_bpm to determine which slits are good for flexure correction. 
+            
+            #This is because we want to include slits that are flagged as BADSKYSUB for flexure correction, 
+            # but not for extraction.
+
             trace_spat = 0.5 * (self.slits_left + self.slits_right)
             _global_sky = self.global_sky if self.bkg_redux_global_sky is None else self.bkg_redux_global_sky
             flex_list = flexure.spec_flexure_slit_global(self.sciImg, self.waveimg, _global_sky, self.par,
@@ -584,7 +640,7 @@ class Extract:
             log.info('Performing local spectral flexure correction')
             # Measure flexure:
             # If mode == local: specobjs != None and slitspecs = None
-            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.flexure_bpm,
+            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.flexure_bpm, # Change: Use the flexure_bpm instead of the extract_bpm 
                                                   self.par['flexure']['spectrum'],
                                                   method=self.par['flexure']['spec_method'],
                                                   mxshft=self.par['flexure']['spec_maxshift'],
@@ -612,7 +668,7 @@ class Extract:
         if flex_list is not None:
             basename = f'{self.basename}_{mode}_{self.spectrograph.get_det_name(self.det)}'
             out_dir = os.path.join(self.par['rdx']['redux_path'], 'QA')
-            spec_flexure_qa(self.slits.slitord_id, self.flexure_bpm, basename, flex_list,
+            spec_flexure_qa(self.slits.slitord_id, self.flexure_bpm, basename, flex_list,  # Change: Use the flexure_bpm instead of the extract_bpm
                             specobjs=sobjs, out_dir=out_dir)
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
@@ -788,7 +844,12 @@ class MultiSlitExtract(Extract):
         base_gpm = self.sciImg.select_flag(invert=True)
 
         # Loop on slits
-        zero_sky = None
+        # >>> NEW
+        # CHANGE: Allow extraction of slits flagged as BADSKYSUB.
+        # This is done by setting the skymodel to zero for those slits and
+        # performing a boxcar extraction without sky subtraction.
+        zero_sky = None # Added: Initialize zero_sky to None. 
+        #This will be used to hold a zero array for the skymodel for the BADSKYSUB slits.
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
             log.info("Local sky subtraction and extraction for slit: {:d}".format(slit_spat))
@@ -800,6 +861,13 @@ class MultiSlitExtract(Extract):
             # True  = Good, False = Bad for inmask
             ingpm = base_gpm & thismask
 
+        # CHANGE: Check if the slit is flagged as BADSKYSUB. 
+        # If it is, set the skymodel to zero for that slit and perform a 
+        # boxcar extraction without sky subtraction. 
+        # If it is not flagged as BADSKYSUB, 
+        # perform a boxcar extraction with sky subtraction.
+
+        # Added:
             if self.extract_badskysub and self.badskysub_slits[slit_idx]:
                 log.warning(
                     f'Slit {slit_spat} is flagged BADSKYSUB; extracting a boxcar spectrum '
@@ -812,6 +880,7 @@ class MultiSlitExtract(Extract):
                 for sobj in self.sobjs[thisobj]:
                     self._extract_badskysub_boxcar(sobj, ingpm, zero_sky)
                 continue
+        # End of addition
 
             # ... Just for readability
             model_full_slit = self.par['reduce']['extraction']['model_full_slit']
@@ -866,12 +935,14 @@ class MultiSlitExtract(Extract):
         # Return
         return self.skymodel, self.bkg_redux_skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
+# >>> NEW
+# Added method to perform boxcar extraction for slits flagged as BADSKYSUB.
     def _extract_badskysub_boxcar(self, sobj, inmask, zero_sky):
         sobj.extract_boxcar(
             self.sciImg.image, self.sciImg.ivar, inmask, self.waveimg, zero_sky,
             fwhmimg=self.fwhmimg, flatimg=self.flatimg, base_var=self.sciImg.base_var,
             count_scale=self.sciImg.img_scale, noise_floor=self.sciImg.noise_floor)
-
+# <<< END NEW
 
 class EchelleExtract(Extract):
     """

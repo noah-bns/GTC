@@ -3,7 +3,8 @@
 ## Help Option
 
 Use  -h
-ex: $ pypeit_setup -h
+
+$ pypeit_setup -h
 
 ## Download the example Files
 

@@ -1,0 +1,2 @@
+    INFO | 2026-11-17 12:31:28 | inputfiles.py:from_file:169 | Loading the reduction file
+   ERROR | 2026-11-17 12:31:28 | inputfiles.py:readlines:144 | FileNotFoundError: Input file gtc_osiris_plus_A.pypeit does not exist!
