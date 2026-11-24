@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from pypeit.extraction import Extract
+from Notebooks.BADSKYSUB_proposal.pypeit.extraction import Extract
 from pypeit.slittrace import SlitTraceBitMask
 
 

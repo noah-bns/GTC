@@ -1,7 +1,7 @@
 # Data files
 PypeIt-development-suite/*
 REDUX_OUT/*
-*_RD/*
+*RD*/*
 REDUX_OUT/*
 *.png 
 *.fits
