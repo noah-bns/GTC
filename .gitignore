@@ -1,10 +1,12 @@
 # Data files
 PypeIt-development-suite/*
 REDUX_OUT/*
+
+# Ignore everything inside RD directories
 *RD*/*
-REDUX_OUT/*
+
 *.png 
-*.fits
+#*.fits
 *.fits.gz
 *.html
 *.pdf
